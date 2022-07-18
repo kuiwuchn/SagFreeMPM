@@ -1,6 +1,13 @@
 Sagfree elastic MPM Demo
 ================
-![Screenshot](demo.gif)
+![Screenshot](demo_nosagfree.gif)
+
+Naive initialization
+
+![Screenshot](demo_sagfree.gif)
+
+Sag-Free initialization
+
 This is a Python implementation of initializating sag-free MPM simulation (https://graphics.cs.utah.edu/research/projects/sag-free-simulations/).
 
 Dependencies
