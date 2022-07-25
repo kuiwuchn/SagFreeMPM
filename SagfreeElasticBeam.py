@@ -31,6 +31,8 @@ grid_v = ti.Vector.field(2,    dtype=float, shape=(n_grid, n_grid)) # grid node 
 grid_m = ti.field(             dtype=float, shape=(n_grid, n_grid)) # grid node mass
 grid_i = ti.field(             dtype=int,   shape=(n_grid, n_grid)) # grid node index
 
+USE_SAGFREE_INIT = 0
+
 ####################################################################
 # functions for the forward MPM simulation 
 
@@ -302,42 +304,44 @@ def verifyLocalStep(res_array, col_num):
 
 initialize()
 
-# get lhs matrix
-P2GStatic()
-row_num, col_num = computeRowAndColNum()
-row, col, dat = getSpMCoeff()
-A_sp  = csc_matrix((dat, (row, col)), shape=(row_num * 2, col_num * 3))
-At_sp = csc_matrix((dat, (col, row)), shape=(col_num * 3, row_num * 2))
+if USE_SAGFREE_INIT:
+    # get lhs matrix
+    P2GStatic()
+    row_num, col_num = computeRowAndColNum()
+    row, col, dat = getSpMCoeff()
+    A_sp  = csc_matrix((dat, (row, col)), shape=(row_num * 2, col_num * 3))
+    At_sp = csc_matrix((dat, (col, row)), shape=(col_num * 3, row_num * 2))
+    
+    # get rhs vector
+    b = getRhsVec(row_num)
+    
+    # solve the global stage
+    c = directSolverLsqr(A_sp, b)      
+    
+    # verify results from the global stage
+    verifyGlobalStep()
+    
+    # solve the local stage
+    res_array = np.zeros(col_num * 3)
+    for i in range(0, col_num) :
+        res = findSol(np.array([[c[i * 3], c[i * 3 + 2]], [c[i * 3 + 2], c[i * 3 + 1]]]))
+        res_array[i * 3 + 0] = res[0]
+        res_array[i * 3 + 1] = res[1]
+        res_array[i * 3 + 2] = res[2]
+    
+    # verify results from the local stage  
+    verifyLocalStep(res_array, col_num)
+    
+    # copy the results into F
+    col_num = 0
+    for p in range(0, n_particles): 
+        if x[p][0] >= (beam_x + 1) * dx:
+            F[p][0, 0] = res_array[col_num * 3 + 0]
+            F[p][1, 1] = res_array[col_num * 3 + 1]
+            F[p][0, 1] = res_array[col_num * 3 + 2]
+            F[p][1, 0] = res_array[col_num * 3 + 2]
+            col_num = col_num + 1
 
-# get rhs vector
-b = getRhsVec(row_num)
-
-# solve the global stage
-c = directSolverLsqr(A_sp, b)      
-
-# verify results from the global stage
-verifyGlobalStep()
-
-# solve the local stage
-res_array = np.zeros(col_num * 3)
-for i in range(0, col_num) :
-    res = findSol(np.array([[c[i * 3], c[i * 3 + 2]], [c[i * 3 + 2], c[i * 3 + 1]]]))
-    res_array[i * 3 + 0] = res[0]
-    res_array[i * 3 + 1] = res[1]
-    res_array[i * 3 + 2] = res[2]
-  
-# verify results from the local stage  
-verifyLocalStep(res_array, col_num)
-
-# copy the results into F
-col_num = 0
-for p in range(0, n_particles): 
-    if x[p][0] >= (beam_x + 1) * dx:
-        F[p][0, 0] = res_array[col_num * 3 + 0]
-        F[p][1, 1] = res_array[col_num * 3 + 1]
-        F[p][0, 1] = res_array[col_num * 3 + 2]
-        F[p][1, 0] = res_array[col_num * 3 + 2]
-        col_num = col_num + 1
 
 gui = ti.GUI("Sagfree elastic beam", res=512, background_color=0x222222)
 
@@ -357,5 +361,5 @@ while not gui.get_event(ti.GUI.ESCAPE, ti.GUI.EXIT):
     gui.circles(x.to_numpy(), radius=1.5, color=0xED553B)
 
     gui.show()
-
+   
     cleanGrid()
