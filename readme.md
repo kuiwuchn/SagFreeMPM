@@ -10,6 +10,8 @@ Sag-Free initialization
 
 This is a Python implementation of initializating sag-free MPM simulation (https://graphics.cs.utah.edu/research/projects/sag-free-simulations/).
 
+Turn off the sag-free initialization by setting USE_SAGFREE_INIT as 0 in line34.
+
 Dependencies
 --------------------
 This demo depends on [Taichi](https://github.com/taichi-dev/taichi). You may follow its [documentation](https://docs.taichi.graphics/) for installation, or simply type `pip install taichi` under a Python 3 environment.
